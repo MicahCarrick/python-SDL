@@ -1,28 +1,65 @@
 #include <Python.h>
 #include <stdint.h>
 #include <SDL2/SDL.h>
-#include "python-sdl.h"
+#include "sdl.h"
+
+PyObject *PythonSDL_Error;
+PyObject *PythonSDL_InitError;
 
 /* SDL_Init() */
-static PyObject *
+static PyObject*
 sdl_init(PyObject *self, PyObject *args)
 {
     Uint32 flags;
     int r;
     
-    if (!PyArg_ParseTuple(args, "I", &flags)) 
-    {
+    if (!PyArg_ParseTuple(args, "I", &flags)) return NULL;
+
+    r = SDL_Init(flags);
+    
+    if (r != 0) {
+        PyErr_SetString(PythonSDL_InitError, SDL_GetError());
         return NULL;
     }
-
-    /* TODO: raise exception with SDL_GetError() ? */
-    r = SDL_Init(flags);
     
     return Py_BuildValue("i", r);
 }
 
+/* SDL_InitSubSystem() */
+static PyObject*
+sdl_init_subsystem(PyObject *self, PyObject *args)
+{
+    Uint32 flags;
+    int r;
+    
+    if (!PyArg_ParseTuple(args, "I", &flags)) return NULL;
+
+    r = SDL_InitSubSystem(flags);
+    
+    if (r != 0) {
+        PyErr_SetString(PythonSDL_InitError, SDL_GetError());
+        return NULL;
+    }
+    
+    return Py_BuildValue("i", r);
+}
+
+/* SDL_WasInit() */
+static PyObject*
+sdl_was_init(PyObject *self, PyObject *args)
+{
+    Uint32 flags;
+    int r;
+    
+    if (!PyArg_ParseTuple(args, "I", &flags)) return NULL;
+
+    r = SDL_WasInit(flags);
+
+    return Py_BuildValue("i", r);
+}
+
 /* SDL_Quit() */
-static PyObject *
+static PyObject*
 sdl_quit(PyObject *self, PyObject *args)
 {
     SDL_Quit();
@@ -31,8 +68,15 @@ sdl_quit(PyObject *self, PyObject *args)
 
 /* Method table definition */
 static PyMethodDef sdl_methods[] = {
-    {"init", sdl_init, METH_VARARGS, "Initialize the SDL library."},
-    {"quit", sdl_quit, METH_VARARGS, "Clean up initialized subsystems."},
+    {"init", sdl_init, METH_VARARGS, 
+        "Initialize the SDL library."},
+    {"init_subsystem", sdl_init_subsystem, METH_VARARGS, 
+        "Initialize specific SDL subsystems."},
+    {"was_init", sdl_was_init, METH_VARARGS, 
+        "Return a mask of the specified subsystems which have previously been" \
+        " initialized."},
+    {"quit", sdl_quit, METH_VARARGS, 
+        "Clean up initialized subsystems."},
     {NULL, NULL, 0, NULL}
 };
 
@@ -40,8 +84,8 @@ static PyMethodDef sdl_methods[] = {
 /* Module definition for PyModule_Create() */
 static struct PyModuleDef sdl_module = {
         PyModuleDef_HEAD_INIT,
-        "sdl",
-        NULL,
+        "_sdl",
+        "Python implementation of the SDL 2.0 API.",
         -1,
         sdl_methods
 };
@@ -53,28 +97,54 @@ See: http://docs.python.org/3/howto/cporting.html
 */
 #ifdef PY3
 PyObject *
-PyInit_sdl(void)
+PyInit__sdl(void)
 #else
 PyMODINIT_FUNC
-initsdl(void)
+init_sdl(void)
 #endif
 {
 #ifdef PY3
     PyObject *module = PyModule_Create(&sdl_module);
+    if (module == NULL) return NULL;
 #else
     PyObject *module = Py_InitModule("sdl", sdl_methods);
+    if (module == NULL) return;
 #endif
-    /* Add the constants defined in SDL.h to the Python module. */
-    /* init flags */
-    PY_MODULE_CONSTANT(module, "INIT_TIMER", SDL_INIT_TIMER);
-    PY_MODULE_CONSTANT(module, "INIT_AUDIO", SDL_INIT_AUDIO);
-    PY_MODULE_CONSTANT(module, "INIT_VIDEO", SDL_INIT_VIDEO);
-    PY_MODULE_CONSTANT(module, "INIT_JOYSTICK", SDL_INIT_JOYSTICK);
-    PY_MODULE_CONSTANT(module, "INIT_HAPTIC", SDL_INIT_HAPTIC);
-    PY_MODULE_CONSTANT(module, "INIT_GAMECONTROLLER", SDL_INIT_GAMECONTROLLER);
-    PY_MODULE_CONSTANT(module, "INIT_NOPARACHUTE", SDL_INIT_NOPARACHUTE);
-    PY_MODULE_CONSTANT(module, "INIT_EVERYTHING", SDL_INIT_EVERYTHING);
- 
+
+    /* define exceptions */
+    PythonSDL_Error = PyErr_NewException("sdl.Error", PyExc_Exception, NULL);
+    PythonSDL_InitError = PyErr_NewException("sdl.InitError", PyExc_Exception, NULL);
+    
+    /* add the constants defined in SDL.h */
+    PY_MODULE_ADD_LONG(module, "INIT_TIMER", SDL_INIT_TIMER);
+    PY_MODULE_ADD_LONG(module, "INIT_AUDIO", SDL_INIT_AUDIO);
+    PY_MODULE_ADD_LONG(module, "INIT_VIDEO", SDL_INIT_VIDEO);
+    PY_MODULE_ADD_LONG(module, "INIT_JOYSTICK", SDL_INIT_JOYSTICK);
+    PY_MODULE_ADD_LONG(module, "INIT_HAPTIC", SDL_INIT_HAPTIC);
+    PY_MODULE_ADD_LONG(module, "INIT_GAMECONTROLLER", SDL_INIT_GAMECONTROLLER);
+    PY_MODULE_ADD_LONG(module, "INIT_NOPARACHUTE", SDL_INIT_NOPARACHUTE);
+    PY_MODULE_ADD_LONG(module, "INIT_EVERYTHING", SDL_INIT_EVERYTHING);
+    
+    /* add version information */
+    SDL_version compiled;
+    SDL_version linked;
+    PyObject *version;
+    
+    SDL_VERSION(&compiled);
+    SDL_GetVersion(&linked);
+    
+    version = Py_BuildValue("iii", compiled.major, compiled.minor, 
+                            compiled.patch);
+    PyModule_AddObject(module, "COMPILED_VERSION", version);
+    
+    version = Py_BuildValue("iii", compiled.major, compiled.minor, 
+                            compiled.patch);
+    PyModule_AddObject(module, "LINKED_VERSION", version);
+    
+    version = Py_BuildValue("iii", PYTHON_SDL_MAJOR, PYTHON_SDL_MINOR, 
+                            PYTHON_SDL_REVISION);
+    PyModule_AddObject(module, "PYTHON_SDL_VERSION", version);
+    
 #ifdef PY3
     return module;
 #endif    
