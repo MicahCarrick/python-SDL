@@ -1,7 +1,7 @@
 #include <Python.h>
 #include <stdint.h>
 #include <SDL2/SDL.h>
-#include "../sdl.h"
+#include "../python-SDL.h"
 #include "window.h"
 
 #define PY_MODULE_NAME "_sdl_video"
