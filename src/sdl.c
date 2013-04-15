@@ -3,6 +3,8 @@
 #include <SDL2/SDL.h>
 #include "sdl.h"
 
+#define PY_MODULE_NAME "_sdl"
+
 PyObject *PythonSDL_Error;
 PyObject *PythonSDL_InitError;
 
@@ -84,7 +86,7 @@ static PyMethodDef sdl_methods[] = {
 /* Module definition for PyModule_Create() */
 static struct PyModuleDef sdl_module = {
         PyModuleDef_HEAD_INIT,
-        "_sdl",
+        PY_MODULE_NAME,
         "Python implementation of the SDL 2.0 API.",
         -1,
         sdl_methods
@@ -107,7 +109,7 @@ init_sdl(void)
     PyObject *module = PyModule_Create(&sdl_module);
     if (module == NULL) return NULL;
 #else
-    PyObject *module = Py_InitModule("sdl", sdl_methods);
+    PyObject *module = Py_InitModule(PY_MODULE_NAME, sdl_methods);
     if (module == NULL) return;
 #endif
 

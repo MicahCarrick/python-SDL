@@ -2,6 +2,7 @@
 #define PYTHON_SDL_H
 #include "Python.h"
 
+/* TODO: move to setup.py */
 #define PYTHON_SDL_MAJOR 0
 #define PYTHON_SDL_MINOR 1
 #define PYTHON_SDL_REVISION 0
@@ -25,4 +26,4 @@
 extern PyObject* PythonSDL_Error;
 extern PyObject* PythonSDL_InitError;
 
-#endif
+#endif /* PYTHON_SDL_H */
